@@ -22,3 +22,5 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR
   add_definitions(-std=c++11)
 endif()
 ADD_EXECUTABLE(header-parser ${SOURCES} parser.cc parser.h main.h)
+
+INSTALL(TARGETS header-parser)
