@@ -5,10 +5,10 @@ name: CMake Build Matrix
 on: [push, pull_request]
 
 env:
-  CMAKE_VERSION: 3.23.0
-  NINJA_VERSION: 1.10.2
+  CMAKE_VERSION: 3.16.2
+  NINJA_VERSION: 1.9.0
   BUILD_TYPE: Release
-  CCACHE_VERSION: 4.6
+  CCACHE_VERSION: 3.4.1
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
           }
         - {
             name: "Ubuntu Latest GCC", artifact: "Linux.7z",
-            os: ubuntu-latest,
+            os: ubuntu-18.04,
             cc: "gcc", cxx: "g++"
           }
         - {
