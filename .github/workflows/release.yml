@@ -19,7 +19,7 @@ jobs:
             executable_name: "header-parser"
             artifact_name: "header-parser-linux-x64"
           - os: windows-latest
-            cmake_generator: "Visual Studio 17 2022"
+            cmake_generator: "Visual Studio 16 2019"
             executable_name: "header-parser.exe"
             artifact_name: "header-parser-windows-x64"
           - os: macos-latest
