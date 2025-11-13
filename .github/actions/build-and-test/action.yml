@@ -37,8 +37,8 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.os }}" = "windows-latest" ]; then
-          echo "executable-path=build/Release/${{ inputs.executable-name }}" >> $GITHUB_OUTPUT
-          echo "build-dir=build/Release" >> $GITHUB_OUTPUT
+          echo "executable-path=build/${{ inputs.executable-name }}" >> $GITHUB_OUTPUT
+          echo "build-dir=build" >> $GITHUB_OUTPUT
         else
           echo "executable-path=build/${{ inputs.executable-name }}" >> $GITHUB_OUTPUT
           echo "build-dir=build" >> $GITHUB_OUTPUT
