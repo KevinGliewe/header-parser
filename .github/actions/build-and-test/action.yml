@@ -1,0 +1,184 @@
+name: 'Build and Test Header Parser'
+description: 'Builds the header-parser project and runs tests with the example files'
+
+inputs:
+  os:
+    description: 'Operating system (ubuntu-latest, windows-latest, macos-latest)'
+    required: true
+  cmake-generator:
+    description: 'CMake generator to use'
+    required: true
+  executable-name:
+    description: 'Name of the executable file'
+    required: true
+  test-only:
+    description: 'Whether to only run tests (skip output comparison)'
+    required: false
+    default: 'false'
+
+outputs:
+  executable-path:
+    description: 'Path to the built executable'
+    value: ${{ steps.set-paths.outputs.executable-path }}
+  build-dir:
+    description: 'Path to the build directory'
+    value: ${{ steps.set-paths.outputs.build-dir }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.20'
+
+    - name: Set paths
+      id: set-paths
+      shell: bash
+      run: |
+        if [ "${{ inputs.os }}" = "windows-latest" ]; then
+          echo "executable-path=build/Release/${{ inputs.executable-name }}" >> $GITHUB_OUTPUT
+          echo "build-dir=build/Release" >> $GITHUB_OUTPUT
+        else
+          echo "executable-path=build/${{ inputs.executable-name }}" >> $GITHUB_OUTPUT
+          echo "build-dir=build" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Configure CMake (Unix)
+      if: inputs.os != 'windows-latest'
+      shell: bash
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G "${{ inputs.cmake-generator }}" -DCMAKE_BUILD_TYPE=Release
+
+    - name: Configure CMake (Windows)
+      if: inputs.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G "${{ inputs.cmake-generator }}" -A x64
+
+    - name: Build (Unix)
+      if: inputs.os != 'windows-latest'
+      shell: bash
+      run: |
+        cd build
+        cmake --build . --config Release
+
+    - name: Build (Windows)
+      if: inputs.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        cd build
+        cmake --build . --config Release
+
+    - name: Verify executable exists (Unix)
+      if: inputs.os != 'windows-latest'
+      shell: bash
+      run: |
+        if [ ! -f "${{ steps.set-paths.outputs.executable-path }}" ]; then
+          echo "❌ Executable not found at ${{ steps.set-paths.outputs.executable-path }}!"
+          exit 1
+        fi
+        echo "✅ Executable found at ${{ steps.set-paths.outputs.executable-path }}"
+
+    - name: Verify executable exists (Windows)
+      if: inputs.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        if (!(Test-Path "${{ steps.set-paths.outputs.executable-path }}")) {
+          Write-Error "❌ Executable not found at ${{ steps.set-paths.outputs.executable-path }}!"
+          exit 1
+        }
+        Write-Output "✅ Executable found at ${{ steps.set-paths.outputs.executable-path }}"
+
+    - name: Run header-parser test (Unix)
+      if: inputs.os != 'windows-latest'
+      shell: bash
+      run: |
+        cd examples
+        ../${{ steps.set-paths.outputs.executable-path }} example.h -c TCLASS -e TENUM -f TFUNC -p TPROPERTY -q TCONSTRUCTOR > output.json
+        echo "📝 Generated output:"
+        if [ "${{ inputs.test-only }}" = "false" ]; then
+          cat output.json
+        else
+          head -10 output.json
+          echo "..."
+        fi
+
+    - name: Run header-parser test (Windows)
+      if: inputs.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        cd examples
+        ../${{ steps.set-paths.outputs.executable-path }} example.h -c TCLASS -e TENUM -f TFUNC -p TPROPERTY -q TCONSTRUCTOR > output.json
+        Write-Output "📝 Generated output:"
+        if ("${{ inputs.test-only }}" -eq "false") {
+          Get-Content output.json
+        } else {
+          Get-Content output.json | Select-Object -First 10
+          Write-Output "..."
+        }
+
+    - name: Compare output with expected (Unix)
+      if: inputs.os != 'windows-latest' && inputs.test-only == 'false'
+      shell: bash
+      run: |
+        cd examples
+        if ! diff -u example.json output.json; then
+          echo "❌ Output doesn't match expected result!"
+          echo "Expected:"
+          cat example.json
+          echo "Actual:"
+          cat output.json
+          exit 1
+        fi
+        echo "✅ Output matches expected result!"
+
+    - name: Compare output with expected (Windows)
+      if: inputs.os == 'windows-latest' && inputs.test-only == 'false'
+      shell: pwsh
+      run: |
+        cd examples
+        $expected = Get-Content example.json -Raw
+        $actual = Get-Content output.json -Raw
+        
+        # Normalize line endings for comparison
+        $expected = $expected -replace "`r`n", "`n"
+        $actual = $actual -replace "`r`n", "`n"
+        
+        if ($expected -ne $actual) {
+          Write-Error "❌ Output doesn't match expected result!"
+          Write-Output "Expected:"
+          Write-Output $expected
+          Write-Output "Actual:"
+          Write-Output $actual
+          exit 1
+        }
+        Write-Output "✅ Output matches expected result!"
+
+    - name: Validate test passed (test-only mode)
+      if: inputs.test-only == 'true'
+      shell: bash
+      run: |
+        cd examples
+        if [ "${{ inputs.os }}" = "windows-latest" ]; then
+          # For Windows, use PowerShell to validate
+          powershell -Command "
+            \$expected = Get-Content example.json -Raw;
+            \$actual = Get-Content output.json -Raw;
+            \$expected = \$expected -replace \"\`r\`n\", \"\`n\";
+            \$actual = \$actual -replace \"\`r\`n\", \"\`n\";
+            if (\$expected -ne \$actual) { Write-Error 'Test failed!' ; exit 1 } else { Write-Output '✅ Test passed!' }
+          "
+        else
+          # For Unix systems, use diff
+          if ! diff -u example.json output.json > /dev/null; then
+            echo "❌ Test failed!"
+            exit 1
+          else
+            echo "✅ Test passed!"
+          fi
+        fi

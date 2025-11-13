@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cmake_generator: "Unix Makefiles"
+            executable_name: "header-parser"
+          - os: windows-latest
+            cmake_generator: "Visual Studio 17 2022"
+            executable_name: "header-parser.exe"
+          - os: macos-latest
+            cmake_generator: "Unix Makefiles"
+            executable_name: "header-parser"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Build and test header-parser
+      uses: ./.github/actions/build-and-test
+      with:
+        os: ${{ matrix.os }}
+        cmake-generator: ${{ matrix.cmake_generator }}
+        executable-name: ${{ matrix.executable_name }}
+
+    - name: Upload artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-${{ matrix.os }}
+        path: |
+          build/
+          examples/output.json
+        retention-days: 7
