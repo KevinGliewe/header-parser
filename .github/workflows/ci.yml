@@ -13,7 +13,7 @@ jobs:
             cmake_generator: "Unix Makefiles"
             executable_name: "header-parser"
           - os: windows-latest
-            cmake_generator: "Visual Studio 16 2019"
+            cmake_generator: "NMake Makefiles"
             executable_name: "header-parser.exe"
           - os: macos-latest
             cmake_generator: "Unix Makefiles"
